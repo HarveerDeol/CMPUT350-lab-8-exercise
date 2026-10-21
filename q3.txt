@@ -1,0 +1,11 @@
+1. Composition and inversion
+Both are always possible: f(g(x)) = (fs*gs)*x + (fs*gt + ft), and the inverse of f(x) = s*x + t has scale 1/s and translation -t/s, 
+which is nonzero whenever s is.
+
+2. ECS component
+The BasicTransform is the best candidate, since nearly every game object needs one,enemies, colliders, cameras, 
+while the texture and vertex data only matter for rendering.
+
+3. Translucent sprites
+Because alpha blending is not commutative, we must sort sprites by depth layer and draw them back to front so each nearer sprite blends over 
+the ones behind it

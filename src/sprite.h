@@ -1,40 +1,31 @@
 #ifndef SPRITE_H
 #define SPRITE_H
 
+#include <array>
+#include <cstddef>
+
 #include "basic_transform.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 
-class Sprite {  // could derive from sf::Drawable if you're willing to pay for a vptr.
+class Sprite {  // could derive from sf::Drawable if you're willing to pay for a vptr, but not
+                // necessary.
 public:
     Sprite(const sf::Texture& texture)
-        : mTexture(&texture),
-          mVertexArray(sf::PrimitiveType::Triangles, 6),
-          mMinPointTex{},
-          mMaxPointTex(texture.getSize()),
-          mOrigin{},
-          mTransform() {
-        recomputeVertexArray();
-    }
+        : Sprite(texture, {0.f, 0.f}, sf::Vector2f(texture.getSize())) {}
 
     Sprite(const sf::Texture& texture, const sf::Vector2f& texMinPoint,
            const sf::Vector2f& texMaxPoint)
         : mTexture(&texture),
           mVertexArray(sf::PrimitiveType::Triangles, 6),
-          mMinPointTex{texMinPoint},
-          mMaxPointTex{texMaxPoint},
-          mOrigin{},
-          mTransform() {
-        recomputeVertexArray();
-    }
+          mMinPointTex(texMinPoint),
+          mMaxPointTex(texMaxPoint),
+          mOrigin(0.f, 0.f) {}
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const {
-        if (mTexture == nullptr) {
-            return;
-        }
+        if (!mTexture) return;
         recomputeVertexArray();
         states.texture = mTexture;
-        states.coordinateType = sf::CoordinateType::Pixels;
         target.draw(mVertexArray, states);
     }
 
@@ -46,34 +37,30 @@ public:
     const sf::Vector2f& origin() const { return mOrigin; }
 
 private:
-    static constexpr std::array<sf::Vector2f, 6> DEFAULT_VERTICES = {
-        // top-left triangle
-        sf::Vector2f{0.f, 0.f},  // top-left
-        sf::Vector2f{0.f, 1.f},  // bottom-left
-        sf::Vector2f{1.f, 0.f},  // top-right
-        // bottom-right triangle
-        sf::Vector2f{1.f, 0.f},  // top-right
-        sf::Vector2f{0.f, 1.f},  // bottom-left
-        sf::Vector2f{1.f, 1.f}   // bottom-right
-    };
+    static constexpr std::array<sf::Vector2f, 6> DEFAULT_VERTICES = {{
+        {0.f, 0.f}, {0.f, 1.f}, {1.f, 0.f},  
+        {0.f, 1.f}, {1.f, 1.f}, {1.f, 0.f}   
+    }};
 
+    // if mTexture is valid, recomputes the positions and coords of sf::Vertex for each
+    // of 6 possible entries in mVertexArray.
     void recomputeVertexArray() const {
-        if (mTexture == nullptr) return;
-        const sf::Vector2f size = mMaxPointTex - mMinPointTex;
-        mVertexArray.resize(6);
-        for (size_t i = 0; i < 6; ++i) {
-            mVertexArray[i].position =
-                mTransform.applyPoint(((DEFAULT_VERTICES[i] * size)) - mOrigin);
-            mVertexArray[i].texCoords = (DEFAULT_VERTICES[i] * size) + mMinPointTex;
+        if (!mTexture) return;
+        const sf::Vector2f texSize = mMaxPointTex - mMinPointTex;
+        for (std::size_t i = 0; i < DEFAULT_VERTICES.size(); ++i) {
+            const sf::Vector2f local = DEFAULT_VERTICES[i] * texSize;  // size in texture pixels
+            mVertexArray[i].texCoords = mMinPointTex + local;
+            mVertexArray[i].position = mTransform.applyPoint(local - mOrigin);
         }
     }
 
     const sf::Texture* mTexture;
-    mutable sf::VertexArray mVertexArray;  // geometry, uv coords
+    mutable sf::VertexArray mVertexArray;  // geometry, uv coords -- mutable means it can be changed
+                                           //  even in const methods.
     sf::Vector2f mMinPointTex;             // AABB for subtexture min point along both x, y
     sf::Vector2f mMaxPointTex;             // AABB for subtexture max point along both x, y
     sf::Vector2f mOrigin;  // position in tex coords of the sprite origin, relative to minPoint
     BasicTransform mTransform;
 };
 
-#endif  // SPRITE_H
+#endif
